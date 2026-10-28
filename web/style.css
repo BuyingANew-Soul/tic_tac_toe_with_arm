@@ -1,0 +1,68 @@
+/* Fonts bundled locally - the venue network may have no internet. */
+@font-face { font-family: "Barlow"; font-weight: 500; font-display: swap; src: url("/static/fonts/barlow-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 600; font-display: swap; src: url("/static/fonts/barlow-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 700; font-display: swap; src: url("/static/fonts/barlow-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Barlow Condensed"; font-weight: 600; font-display: swap; src: url("/static/fonts/barlow-condensed-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Barlow Condensed"; font-weight: 700; font-display: swap; src: url("/static/fonts/barlow-condensed-latin-700-normal.woff2") format("woff2"); }
+/* Shared look: steel-grey board, cobalt student, safety-orange robot. */
+:root {
+  --steel: #e4e8ec;
+  --steel-2: #cfd6dd;
+  --ink: #1d2a3a;
+  --ink-soft: #5b6878;
+  --cobalt: #2f5bea;
+  --orange: #f26b1d;
+  --go: #23a26d;
+  --stop: #d43c3c;
+  --white: #ffffff;
+  --font: "Barlow", system-ui, sans-serif;
+  --font-c: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--steel); color: var(--ink); font-family: var(--font); }
+button { font: inherit; }
+button:focus-visible { outline: 3px solid var(--cobalt); outline-offset: 3px; }
+
+/* ---------- board ---------- */
+.board {
+  position: relative; display: grid; aspect-ratio: 1;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  background: var(--ink); gap: var(--gap, 10px);
+  border: var(--gap, 10px) solid var(--ink); border-radius: 18px;
+}
+.cell {
+  position: relative; background: var(--white); border-radius: 6px;
+  display: grid; place-items: center; overflow: hidden;
+}
+.mark { width: 78%; height: 78%; fill: none; stroke-linecap: round; }
+.mark-x { stroke: var(--cobalt); stroke-width: 13; }
+.mark-o { stroke: var(--orange); stroke-width: 12; }
+.mark path, .mark circle { stroke-dasharray: 200; stroke-dashoffset: 200; animation: draw .35s ease-out forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+.cell.target { box-shadow: inset 0 0 0 8px var(--orange); animation: pulse 0.9s ease-in-out infinite; }
+@keyframes pulse { 50% { background: #fde3d2; } }
+
+.winline { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.winline line { stroke-width: 14; stroke-linecap: round; stroke-dasharray: 400; stroke-dashoffset: 400;
+                animation: draw .5s .2s ease-out forwards; }
+.winline .lx { stroke: var(--cobalt); }
+.winline .lo { stroke: var(--orange); }
+
+.verdict {
+  position: absolute; font-family: var(--font-c); font-weight: 600; font-size: var(--vsize, 22px);
+  padding: .1em .55em; border-radius: 999px; color: var(--white);
+}
+.v-win { background: var(--go); }
+.v-draw { background: var(--ink-soft); }
+.v-lose { background: var(--stop); }
+
+#conn { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+        background: var(--stop); color: var(--white); padding: 8px 16px; border-radius: 8px; z-index: 50; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mark path, .mark circle, .winline line { animation: none; stroke-dashoffset: 0; }
+  .cell.target { animation: none; }
+}

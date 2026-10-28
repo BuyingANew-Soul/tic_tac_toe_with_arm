@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Robot Tic-Tac-Toe</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  html, body { overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
+               -webkit-touch-callout: none; overscroll-behavior: none; }
+  main { height: 100dvh; display: flex; gap: 3vmin; padding: 3vmin; align-items: center; }
+  #board { --gap: 1.6vmin; height: 100%; flex: none; }
+  .side { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4vmin; }
+  #msg { font-family: var(--font-c); font-weight: 700; font-size: clamp(32px, 7vmin, 80px);
+         line-height: 1.02; margin: 0; text-wrap: balance; }
+  #msg.robot { color: var(--orange); }
+  #msg.student { color: var(--cobalt); }
+  #play { align-self: start; border: 0; border-radius: 999px; background: var(--cobalt); color: var(--white);
+          font-family: var(--font-c); font-weight: 700; font-size: clamp(28px, 6vmin, 64px);
+          padding: .25em 1.4em; }
+  #play:active { transform: scale(.97); }
+  #colours { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2.5vmin; }
+  .choc { border: 0; border-radius: 16px; min-height: 16vmin; color: var(--white);
+          font-family: var(--font-c); font-weight: 700; font-size: clamp(22px, 4.5vmin, 46px);
+          box-shadow: inset 0 -8px 0 rgb(0 0 0 / .18); text-shadow: 0 1px 2px rgb(0 0 0 / .35); }
+  .choc.yellow { color: var(--ink); text-shadow: none; }
+  .choc:active { transform: translateY(3px); box-shadow: inset 0 -4px 0 rgb(0 0 0 / .18); }
+
+  /* while the robot plays, only its target cell stays bright. Touches always reach
+     the server (the stylus must register); the server ignores ones it doesn't expect. */
+  body.robot-turn .cell:not(.target) { opacity: .55; }
+
+  #stopped { position: fixed; inset: 0; background: rgb(29 42 58 / .88); color: var(--white);
+             display: grid; place-items: center; font-family: var(--font-c); font-weight: 700;
+             font-size: 9vmin; z-index: 40; }
+  #fs { position: fixed; top: 8px; right: 8px; background: transparent; border: 1px solid var(--steel-2);
+        color: var(--ink-soft); border-radius: 8px; padding: 4px 10px; font-size: 14px; }
+
+  @media (orientation: portrait) {
+    main { flex-direction: column; justify-content: center; }
+    #board { height: auto; width: 100%; }
+    .side { flex: none; width: 100%; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div id="board"></div>
+  <div class="side">
+    <h1 id="msg"></h1>
+    <button id="play" hidden></button>
+    <div id="colours" hidden></div>
+  </div>
+</main>
+<div id="stopped" hidden></div>
+<button id="fs">⛶</button>
+<div id="conn" hidden>Yhteys katkesi – yhdistetään…</div>
+
+<script src="/static/common.js"></script>
+<script>
+  const send = connect("tablet", render);
+  const renderBoard = makeBoard(document.getElementById("board"), cell => send({ type: "touch", cell }));
+  const $ = id => document.getElementById(id);
+  let colourKey = "";
+
+  $("play").onclick = () => send({ type: "play" });
+  $("fs").onclick = () => document.documentElement.requestFullscreen?.().catch(() => {});
+  document.addEventListener("contextmenu", e => e.preventDefault());
+
+  function render(st) {
+    renderBoard(st);
+    const p = st.phase;
+    document.documentElement.lang = st.lang;
+    document.body.classList.toggle("robot-turn", p === "thinking" || p === "robot");
+
+    const msg = $("msg");
+    msg.textContent = t(st, messageKey(st));
+    msg.className = ["thinking", "robot", "giving"].includes(p) ? "robot"
+                  : p === "student" ? "student" : "";
+
+    $("play").hidden = !(p === "idle" || p === "result");
+    $("play").textContent = t(st, "play");
+
+    const box = $("colours");
+    box.hidden = p !== "ask_colour";
+    const key = JSON.stringify([st.available, st.lang]);
+    if (!box.hidden && key !== colourKey) {
+      colourKey = key;
+      box.innerHTML = "";
+      for (const name of Object.keys(st.available)) {
+        const b = document.createElement("button");
+        b.className = "choc " + name;
+        b.style.background = st.colours[name] || "#888";
+        b.textContent = t(st, name);
+        b.onclick = () => send({ type: "colour", colour: name });
+        box.appendChild(b);
+      }
+    }
+
+    $("stopped").hidden = p !== "stopped";
+    $("stopped").textContent = t(st, "stopped");
+    $("fs").hidden = p !== "idle";
+  }
+</script>
+</body>
+</html>

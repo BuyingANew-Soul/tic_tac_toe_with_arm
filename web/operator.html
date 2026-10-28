@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Operator – Robot Tic-Tac-Toe</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  body { background: #f3f5f7; font-size: 16px; }
+  main { max-width: 760px; margin: 0 auto; padding: 16px 16px 80px; display: grid; gap: 20px; }
+  h1 { font-family: var(--font-c); font-weight: 700; font-size: 28px; margin: 0; }
+  h2 { font-family: var(--font-c); font-weight: 600; font-size: 22px; margin: 0 0 10px; }
+  section { background: var(--white); border: 1px solid var(--steel-2); border-radius: 12px; padding: 16px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .muted { color: var(--ink-soft); font-size: 14px; }
+  button { border: 1px solid var(--steel-2); background: var(--white); color: var(--ink);
+           border-radius: 8px; padding: 10px 14px; font-weight: 600; cursor: pointer; }
+  button:hover { border-color: var(--ink-soft); }
+  button.on { background: var(--ink); color: var(--white); border-color: var(--ink); }
+  button:disabled { opacity: .4; cursor: default; }
+  select, input { font: inherit; padding: 8px; border: 1px solid var(--steel-2); border-radius: 8px; }
+  input[type=number] { width: 90px; }
+
+  header { position: sticky; top: 0; z-index: 10; background: #f3f5f7; padding: 12px 0;
+           display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+  #phase { font-weight: 600; }
+  #stop { background: var(--stop); color: var(--white); border: 0; font-family: var(--font-c);
+          font-weight: 700; font-size: 26px; padding: 12px 34px; border-radius: 12px; }
+  #stop.resume { background: var(--go); }
+
+  #alert { background: #fff1e8; border: 2px solid var(--orange); border-radius: 12px; padding: 12px 16px;
+           display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+
+  .modes button { flex: 1; min-width: 120px; text-align: left; }
+  .modes small { display: block; font-weight: 500; opacity: .75; }
+  .stats { display: flex; gap: 20px; font-variant-numeric: tabular-nums; }
+  .stats b { font-size: 22px; }
+
+  .tray { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .slot { border: 1px solid var(--steel-2); border-radius: 10px; padding: 8px; display: grid; gap: 6px; }
+  .slot .dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; vertical-align: -2px;
+               border: 2px solid var(--steel-2); }
+
+  .jog { display: grid; grid-template-columns: repeat(3, 64px); gap: 6px; }
+  .jog button { padding: 12px 0; }
+  .pose { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .cells { display: grid; grid-template-columns: repeat(3, 52px); gap: 6px; }
+  #missing { color: var(--stop); font-weight: 600; }
+  #logs { font-size: 13px; line-height: 1.5; max-height: 260px; overflow: auto; white-space: pre-wrap;
+          background: #f6f7f9; border-radius: 8px; padding: 8px; }
+  details > summary { cursor: pointer; font-family: var(--font-c); font-weight: 600; font-size: 22px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Robot tic-tac-toe</h1>
+      <div class="muted">Game: <span id="phase"></span> · <span id="backend"></span></div>
+    </div>
+    <button id="stop">STOP</button>
+  </header>
+
+  <div id="alert" hidden><span id="alertText"></span><button id="clearAlert">Dismiss</button></div>
+
+  <section>
+    <h2>Arm speed</h2>
+    <div class="row">
+      <button data-speed="10">10 %</button><button data-speed="25">25 %</button>
+      <button data-speed="50">50 %</button><button data-speed="100">100 %</button>
+    </div>
+    <p class="muted">Every start begins at 50 %. 100 % is 50 mm/s in open space and 15 mm/s
+      near the screen. Jogging in Calibration always uses its own slow speed (10 mm/s).</p>
+  </section>
+
+  <section>
+    <h2>Difficulty</h2>
+    <div class="row modes">
+      <button data-mode="hard">Hard<small>Never loses</small></button>
+      <button data-mode="easy">Easy<small>Makes one mistake sometimes</small></button>
+      <button data-mode="gift">Gift<small>Lets the student win</small></button>
+    </div>
+    <p class="muted">Switch any time, even mid-game. Gift is for when someone in the group should get a chocolate.</p>
+    <div class="row" style="margin-bottom: 10px">
+      <span class="muted">Chocolate for a draw:</span>
+      <button data-reward="1">Yes</button><button data-reward="0">No</button>
+    </div>
+    <div class="row" style="margin-bottom: 10px">
+      <span class="muted">Robot's move:</span>
+      <button data-rmove="tap">Touch the screen</button><button data-rmove="point">Point only</button>
+    </div>
+    <div class="row">
+      <button id="reset">Cancel game</button>
+      <span class="muted">Screens:</span>
+      <button data-lang="fi">Suomi</button><button data-lang="en">English</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Score today</h2>
+    <div class="row" style="justify-content: space-between">
+      <div class="stats">
+        <span>Students <b id="stS">0</b></span><span>Robot <b id="stR">0</b></span>
+        <span>Draws <b id="stD">0</b></span><span>Chocolates given <b id="stC">0</b></span>
+      </div>
+      <button id="resetStats">Reset</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Chocolate tray</h2>
+    <p class="muted">Set the colour planned for each slot once. After refilling the real tray, press Refill.</p>
+    <div class="tray" id="tray"></div>
+    <div class="row" style="margin-top: 10px"><button id="refill">Refill tray</button>
+      <span class="muted" id="trayCount"></span></div>
+  </section>
+
+  <section>
+    <details id="calib">
+      <summary>Calibration</summary>
+      <p class="muted">Only while no game is running. Missing: <span id="missing"></span></p>
+
+      <div class="row" style="gap: 24px; align-items: start; margin-top: 8px">
+        <div>
+          <div class="muted">Move the arm</div>
+          <div class="jog" style="margin: 6px 0">
+            <span></span><button data-jog="x" data-dir="1">X+</button><span></span>
+            <button data-jog="y" data-dir="1">Y+</button><button data-jog="z" data-dir="-1">Z− down</button><button data-jog="y" data-dir="-1">Y−</button>
+            <span></span><button data-jog="x" data-dir="-1">X−</button><button data-jog="z" data-dir="1">Z+ up</button>
+          </div>
+          <div class="row"><span class="muted">Step</span>
+            <select id="step"><option>1</option><option selected>5</option><option>20</option></select><span class="muted">mm</span></div>
+          <p class="pose" id="pose">–</p>
+          <div class="row torque-only">
+            <button data-torque="0">Torque off</button><button data-torque="1">Torque on</button>
+          </div>
+          <p class="muted torque-only">Torque off makes the arm limp: hold it first, then move it by hand.</p>
+        </div>
+
+        <div>
+          <div class="muted">Save the current position as</div>
+          <div class="row" style="margin: 6px 0">
+            <button data-save="corner_1">Cell 1</button><button data-save="corner_3">Cell 3</button>
+            <button data-save="corner_7">Cell 7</button><button data-save="corner_9">Cell 9</button>
+          </div>
+          <div class="row">
+            <button data-save="home">Home</button><button data-save="cup">Cup</button>
+            <input type="number" id="slotNo" min="1" value="1" aria-label="Tray slot">
+            <button id="saveSlot">Tray slot</button>
+          </div>
+          <p class="muted">Cells: stylus tip just touching the cell centre. Tray: gripper at grasp height.</p>
+        </div>
+      </div>
+
+      <div class="row" style="gap: 24px; align-items: start; margin-top: 12px">
+        <div>
+          <div class="muted">Tap a cell</div>
+          <div class="cells" id="tapCells" style="margin-top: 6px"></div>
+        </div>
+        <div style="display: grid; gap: 8px">
+          <div class="row"><button id="tapTest">Tap test all 9</button>
+            <span class="muted">needs the tablet page open</span></div>
+          <div class="row"><button data-goto="home">Go home</button><button data-goto="cup">Go to cup</button></div>
+          <div class="row">
+            <span class="muted">Gripper open</span><input type="number" step="0.05" id="gOpen">
+            <button id="tryOpen">Try</button></div>
+          <div class="row">
+            <span class="muted">Gripper grip</span><input type="number" step="0.05" id="gGrip">
+            <button id="tryGrip">Try</button></div>
+          <div class="row"><button id="saveGrip">Save gripper values</button></div>
+          <div class="row"><button id="giveTest">Test give from slot</button>
+            <input type="number" id="giveSlot" min="1" value="1" aria-label="Slot to test"></div>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <section>
+    <h2>Log</h2>
+    <div id="logs"></div>
+  </section>
+</main>
+<div id="conn" hidden>Connection lost – reconnecting…</div>
+
+<script src="/static/common.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const send = connect("operator", render);
+  const calib = (cmd, extra = {}) => send({ type: "calib", cmd, ...extra });
+  let st = null, trayKey = "", gripInit = false;
+
+  $("stop").onclick = () => send({ type: st?.estop ? "resume" : "stop" });
+  document.addEventListener("keydown", e => {        // space = STOP from a laptop keyboard
+    if (e.code === "Space" && !["INPUT", "SELECT"].includes(e.target.tagName)) {
+      e.preventDefault(); if (!st?.estop) send({ type: "stop" });
+    }
+  });
+  $("clearAlert").onclick = () => send({ type: "clear_alert" });
+  $("reset").onclick = () => send({ type: "reset" });
+  $("resetStats").onclick = () => confirm("Reset today's score?") && send({ type: "reset_stats" });
+  $("refill").onclick = () => send({ type: "refill" });
+  document.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => send({ type: "mode", mode: b.dataset.mode }));
+  document.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => send({ type: "lang", lang: b.dataset.lang }));
+  document.querySelectorAll("[data-reward]").forEach(b => b.onclick = () => send({ type: "reward_draw", on: b.dataset.reward === "1" }));
+  document.querySelectorAll("[data-rmove]").forEach(b => b.onclick = () => send({ type: "robot_move", mode: b.dataset.rmove }));
+  document.querySelectorAll("[data-speed]").forEach(b => b.onclick = () => send({ type: "speed", pct: +b.dataset.speed }));
+
+  document.querySelectorAll("[data-jog]").forEach(b => b.onclick = () =>
+    calib("jog", { axis: b.dataset.jog, mm: b.dataset.dir * +$("step").value }));
+  document.querySelectorAll("[data-torque]").forEach(b => b.onclick = () => calib("torque", { on: b.dataset.torque === "1" }));
+  document.querySelectorAll("[data-save]").forEach(b => b.onclick = () => calib("save", { name: b.dataset.save }));
+  document.querySelectorAll("[data-goto]").forEach(b => b.onclick = () => calib("goto", { name: b.dataset.goto }));
+  $("saveSlot").onclick = () => calib("save", { name: "tray_" + $("slotNo").value });
+  $("tapTest").onclick = () => calib("tap_test", { repeats: 1 });
+  $("tryOpen").onclick = () => calib("grip", { rad: +$("gOpen").value });
+  $("tryGrip").onclick = () => calib("grip", { rad: +$("gGrip").value });
+  $("saveGrip").onclick = () => send({ type: "set_gripper", open: +$("gOpen").value, grip: +$("gGrip").value });
+  $("giveTest").onclick = () => calib("give", { slot: +$("giveSlot").value });
+  for (let i = 1; i <= 9; i++) {
+    const b = document.createElement("button"); b.textContent = i;
+    b.onclick = () => calib("tap", { cell: i }); $("tapCells").appendChild(b);
+  }
+  $("calib").addEventListener("toggle", () => $("calib").open && calib("pose"));
+  // live position while Calibration is open: shows at once whether the readings follow the arm
+  setInterval(() => { if ($("calib").open && !document.hidden) send({ type: "pose_poll" }); }, 700);
+
+  const PHASES = { idle: "waiting for players", student: "student's turn", thinking: "robot thinking",
+    robot: "robot moving", result: "result", ask_colour: "student choosing chocolate",
+    giving: "giving chocolate", enjoy: "chocolate delivered", stopped: "STOPPED", calib: "tap test running" };
+
+  function render(s) {
+    st = s;
+    $("phase").textContent = PHASES[s.phase] || s.phase;
+    $("backend").textContent = { sim: "simulated arm", ros: "real arm via MoveIt", serial: "real arm (direct USB)" }[s.backend] || "";
+    document.querySelectorAll(".torque-only").forEach(e => e.hidden = s.backend === "ros");
+    $("stop").textContent = s.estop ? "Resume" : "STOP";
+    $("stop").classList.toggle("resume", s.estop);
+    $("alert").hidden = !s.alert; $("alertText").textContent = s.alert || "";
+
+    document.querySelectorAll("[data-mode]").forEach(b => b.classList.toggle("on", b.dataset.mode === s.mode));
+    document.querySelectorAll("[data-lang]").forEach(b => b.classList.toggle("on", b.dataset.lang === s.lang));
+    document.querySelectorAll("[data-reward]").forEach(b => b.classList.toggle("on", (b.dataset.reward === "1") === s.reward_draw));
+    document.querySelectorAll("[data-rmove]").forEach(b => b.classList.toggle("on", b.dataset.rmove === s.robot_move));
+    document.querySelectorAll("[data-speed]").forEach(b => b.classList.toggle("on", +b.dataset.speed === s.speed_pct));
+    $("stS").textContent = s.stats.student; $("stR").textContent = s.stats.robot;
+    $("stD").textContent = s.stats.draw; $("stC").textContent = s.stats.chocolates;
+
+    // tray editor - rebuild only when something changed, so open selects aren't reset
+    const key = JSON.stringify([s.tray_slots, s.tray_plan, s.tray]);
+    if (key !== trayKey) {
+      trayKey = key;
+      const box = $("tray"); box.innerHTML = "";
+      if (!s.tray_slots.length) box.innerHTML = '<span class="muted">No tray slots taught yet (Calibration → Tray slot).</span>';
+      for (const slot of s.tray_slots) {
+        const plan = s.tray_plan[slot] || "", now = s.tray[slot];
+        const d = document.createElement("div"); d.className = "slot";
+        const opts = ['<option value="">empty</option>', ...Object.keys(s.colours).map(c =>
+          `<option value="${c}" ${c === plan ? "selected" : ""}>${c}</option>`)].join("");
+        d.innerHTML = `<div><span class="dot" style="background:${now ? s.colours[now] : "transparent"}"></span>
+          Slot ${slot} <span class="muted">${now ? "full" : "empty"}</span></div><select>${opts}</select>`;
+        d.querySelector("select").onchange = e => send({ type: "tray_plan", slot, colour: e.target.value });
+        box.appendChild(d);
+      }
+      const n = Object.values(s.tray).filter(Boolean).length;
+      $("trayCount").textContent = `${n} chocolate${n === 1 ? "" : "s"} in the tray`;
+    }
+
+    $("missing").textContent = s.missing.length ? s.missing.join(", ") : "nothing – ready";
+    $("missing").style.color = s.missing.length ? "" : "var(--go)";
+    $("pose").textContent = s.calib_pose
+      ? `x ${(+s.calib_pose.x).toFixed(1)}  y ${(+s.calib_pose.y).toFixed(1)}  z ${(+s.calib_pose.z).toFixed(1)} mm   gripper ${(+s.calib_pose.t).toFixed(2)}`
+      : "No position from the arm – check its power and USB cable";
+    if (!gripInit && s.gripper) { $("gOpen").value = s.gripper.open; $("gGrip").value = s.gripper.grip; gripInit = true; }
+    const busy = !["idle", "result", "calib"].includes(s.phase);
+    document.querySelectorAll("#calib button").forEach(b => b.disabled = busy || s.estop);
+    $("logs").textContent = s.logs.slice().reverse().join("\n");
+  }
+</script>
+</body>
+</html>

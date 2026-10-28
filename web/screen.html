@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Robot Tic-Tac-Toe – screen</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  body { overflow: hidden; }
+  main { height: 100vh; display: grid; grid-template-columns: auto 1fr; gap: 5vh; padding: 5vh 6vh; }
+  #board { --gap: 1.4vh; --vsize: 3.4vh; height: 90vh; }
+  .side { display: grid; grid-template-rows: auto 1fr auto; gap: 4vh; min-width: 0; }
+
+  #msg { font-family: var(--font-c); font-weight: 700; font-size: 9vh; line-height: 1; margin: 0;
+         text-wrap: balance; }
+  #msg.robot { color: var(--orange); }
+  #msg.student { color: var(--cobalt); }
+
+  .brain { align-self: center; max-width: 62vh; }
+  #count { font-family: var(--font-c); font-weight: 700; font-size: 13vh; line-height: 1;
+           color: var(--orange); font-variant-numeric: tabular-nums; }
+  #brainText { font-size: 3.4vh; font-weight: 500; line-height: 1.3; color: var(--ink); margin: 1vh 0 0; }
+  .legend { display: flex; gap: 1.4vh; margin-top: 3vh; flex-wrap: wrap; align-items: center;
+            font-size: 2.4vh; color: var(--ink-soft); }
+  .legend .verdict { position: static; font-size: 2.6vh; }
+
+  .score { display: flex; gap: 6vh; align-items: end; }
+  .score div { display: grid; gap: .4vh; }
+  .score b { font-family: var(--font-c); font-weight: 700; font-size: 10vh; line-height: .9;
+             font-variant-numeric: tabular-nums; }
+  .score span { font-size: 2.6vh; font-weight: 600; color: var(--ink-soft); }
+  #sStudent { color: var(--cobalt); }
+  #sRobot { color: var(--orange); }
+
+  #stopped { position: fixed; inset: 0; background: rgb(29 42 58 / .9); color: var(--white);
+             display: grid; place-items: center; font-family: var(--font-c); font-weight: 700; font-size: 12vh; }
+</style>
+</head>
+<body>
+<main>
+  <div id="board"></div>
+  <section class="side">
+    <h1 id="msg"></h1>
+    <div class="brain">
+      <div id="count" hidden>0</div>
+      <p id="brainText"></p>
+      <div class="legend" id="legend" hidden></div>
+    </div>
+    <div class="score">
+      <div><b id="sStudent">0</b><span id="lStudent"></span></div>
+      <div><b id="sRobot">0</b><span id="lRobot"></span></div>
+      <div><b id="sDraw">0</b><span id="lDraw"></span></div>
+    </div>
+  </section>
+</main>
+<div id="stopped" hidden></div>
+<div id="conn" hidden>Connection lost – reconnecting…</div>
+
+<script src="/static/common.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const renderBoard = makeBoard($("board"));
+  let shownFutures = 0, anim = null, lastPhase = "";
+
+  function countUp(target, ms) {
+    cancelAnimationFrame(anim);
+    const start = performance.now();
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const step = now => {
+      const k = reduce ? 1 : Math.min(1, (now - start) / ms);
+      shownFutures = Math.round(target * (1 - Math.pow(1 - k, 3)));
+      $("count").textContent = shownFutures.toLocaleString("fi-FI");
+      if (k < 1) anim = requestAnimationFrame(step);
+    };
+    anim = requestAnimationFrame(step);
+  }
+
+  connect("screen", st => {
+    const p = st.phase;
+    const thinking = p === "thinking" || p === "robot";
+    renderBoard(st, { scores: thinking });
+    document.documentElement.lang = st.lang;
+
+    $("msg").textContent = t(st, messageKey(st));
+    $("msg").className = ["thinking", "robot", "giving"].includes(p) ? "robot"
+                       : (p === "student" || p === "ask_colour" || (p === "result" && st.result === "X")) ? "student" : "";
+
+    // the robot's "brain": how many games it played out in its head
+    $("count").hidden = !thinking;
+    if (p === "thinking" && lastPhase !== "thinking") countUp(st.futures, 1200);
+    $("brainText").textContent = t(st, thinking ? "futures_caption" : "futures_idle");
+    const lg = $("legend");
+    lg.hidden = !thinking;
+    lg.innerHTML = thinking
+      ? `<span>${t(st, "legend")}:</span><span class="verdict v-win">${t(st, "win")}</span>` +
+        `<span class="verdict v-draw">${t(st, "draw_s")}</span><span class="verdict v-lose">${t(st, "lose")}</span>`
+      : "";
+
+    $("sStudent").textContent = st.stats.student; $("lStudent").textContent = t(st, "students");
+    $("sRobot").textContent = st.stats.robot;     $("lRobot").textContent = t(st, "robot");
+    $("sDraw").textContent = st.stats.draw;       $("lDraw").textContent = t(st, "draws");
+
+    $("stopped").hidden = p !== "stopped";
+    $("stopped").textContent = t(st, "stopped");
+    lastPhase = p;
+  });
+</script>
+</body>
+</html>

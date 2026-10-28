@@ -1,0 +1,8 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pyserial>=3.5
+pyyaml>=6.0
+jinja2
+setuptools
+typeguard
+aiohttp

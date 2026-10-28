@@ -1,0 +1,56 @@
+# Tic-tac-toe robot configuration. Restart the app after editing.
+
+arm:
+  backend: ros           # ros = through MoveIt (recommended) | serial = arm on this machine's USB | sim
+  port: null             # serial only: null = auto-detect (/dev/ttyUSB0 usually)
+  baud: 115200
+
+# Only used with backend: ros. Names must match YOUR MoveIt config
+# (check with: ros2 param get /move_group robot_description_semantic, or your .srdf).
+ros:
+  arm_group: arm         # Waveshare's original config calls it "hand"
+  gripper_group: gripper
+  gripper_joint: link3_to_gripper_link
+  ee_link: hand_tcp
+  frame: base_link
+  joint_states_topics: [/roarm/joint_states, /joint_states]   # where MoveIt publishes joint states
+  max_vel_scale: 0.5     # MoveIt velocity scaling at 100 % on the operator page
+  max_acc_scale: 0.5
+  tablet_collision: true # tablet becomes a box in MoveIt's planning scene (from the taught corners)
+  tablet_below_mm: 30    # box top this far below the taught touch points (stylus must stick out >= 15 mm)
+  gripper_open: 1.5      # MoveIt gripper joint: 0 = closed, 1.5 = open
+  gripper_grip: 0.4      # closed on a chocolate - tune on the operator page
+  # keep_out:            # optional no-go boxes, e.g. where the students stand (mm, base_link)
+  #   - {name: students, min: [-600, -600, -100], max: [-350, 600, 600]}
+
+skills:                  # mm, firmware rad
+  hover_mm: 25
+  press_mm: 3
+  travel_mm_s: 50       # top speed in open space, at 100 % (operator page)
+  near_mm_s: 15         # near the screen, chocolate and cup
+  jog_mm_s: 10          # calibration jogging
+  accel_mm_s2: 100      # gentle start/stop
+  gripper_open: 2.2      # find on Day 1 (operator page -> Calibration -> gripper)
+  gripper_grip: 2.9
+
+touch:
+  timeout_s: 2.0         # wait this long after a robot tap for the tablet to see it
+  retries: 1             # retry once, pressing deeper by retry_extra_mm
+  retry_extra_mm: 2
+
+game:
+  mode: easy             # hard | easy | gift  (operator can change live)
+  reward_draw: true     # chocolate for a draw too (operator can switch live)
+  robot_move: tap       # tap | point  (operator can switch live)
+  think_s: 1.5           # robot "thinks" on the big screen before moving
+  result_s: 6            # how long 'enjoy your chocolate' stays up
+
+# Chocolate colours: name -> screen colour. Slots are assigned on the operator page.
+colours:
+  red: "#e5484d"
+  blue: "#3e7bfa"
+  green: "#30a46c"
+  yellow: "#f5c518"
+
+poses_file: data/poses.yaml
+tray_file: data/tray.yaml
